@@ -6,12 +6,12 @@ import plotly.graph_objects as go
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import shap
-import nltk # Make sure nltk is imported
+import nltk
 
 # Import our custom modules
 import model_engine
 import nlp_insight
-import data_connector
+import data_connector # <-- This is our new data connector
 
 # --- Page Configuration ---
 st.set_page_config(page_title="Project Nirmaan", page_icon="🏗️", layout="wide", initial_sidebar_state="expanded")
@@ -24,7 +24,6 @@ def load_models():
 # --- Main App Logic ---
 def main():
     # --- ROBUST NLTK SETUP ---
-    # This code runs only once per session and is very reliable.
     if 'nltk_downloaded' not in st.session_state:
         with st.spinner("Downloading necessary language models... (This is a one-time setup)"):
             try:
@@ -42,25 +41,23 @@ def main():
     page = st.sidebar.selectbox("Navigate", ["📊 Live Project Dashboard", "🔮 What-If Simulator", "📜 Vendor Report Analyzer"])
 
     if page == "📊 Live Project Dashboard":
-        show_dashboard()
+        show_dashboard() # This will now use our NEW function
     elif page == "🔮 What-If Simulator":
         show_simulator(cost_model, timeline_model)
     elif page == "📜 Vendor Report Analyzer":
         show_nlp_analyzer()
 
-# --- Page 1: The Dashboard ---
-# --- Page 1: The Live Dashboard (NEW VERSION) ---
+# --- Page 1: The NEW Live Dashboard ---
 def show_dashboard():
     st.header("📊 Live Project Risk Dashboard")
     
     # --- Fetch Live Data ---
-    live_data = fetch_live_project_data()
-    last_sync = get_last_sync_time()
+    live_data = data_connector.fetch_live_project_data() # <-- WE CALL OUR NEW FUNCTION
+    last_sync = data_connector.get_last_sync_time()
     st.caption(f"Last data sync: {last_sync}")
 
     # --- Interactive Map with Live Data ---
     st.subheader("Geospatial Risk View")
-    # We use the 'status' column to color the points
     fig_map = px.scatter_mapbox(live_data, lat="lat", lon="lon", color="status", hover_name="name",
                                 hover_data=['project_id', 'predicted_delay_days', 'vendor_status'],
                                 color_discrete_map={"On Track":"green", "At Risk":"orange", "Critical":"red"},
@@ -74,16 +71,16 @@ def show_dashboard():
     avg_delay = live_data['predicted_delay_days'].mean()
 
     col1, col2, col3 = st.columns(3)
-    col1.metric("Total Active Projects", total_projects)
-    col2.metric("Critical Projects", critical_projects, f"{critical_projects/total_projects:.0%} of total")
-    col3.metric("Avg. Predicted Delay", f"{avg_delay:.0f} days")
+    col1.metric("Total Active Projects", total_projects) # <-- This is now dynamic
+    col2.metric("Critical Projects", critical_projects, f"{critical_projects/total_projects:.0%} of total") # <-- Dynamic
+    col3.metric("Avg. Predicted Delay", f"{avg_delay:.0f} days") # <-- Dynamic
 
-    # --- Detailed Project Table ---
-    st.subheader("Detailed Project Status")
-    # We display the live data in a clean table format
+    # --- THIS IS THE NEW PART: A DETAILED PROJECT TABLE ---
+    st.subheader("Detailed Project Status Report")
     st.dataframe(live_data, use_container_width=True)
-    
-# --- Page 2: The Simulator ---
+
+
+# --- Page 2: The Simulator (unchanged) ---
 def show_simulator(cost_model, timeline_model):
     st.header("🔮 Project Risk Simulator")
     st.markdown("Model a new project and predict its risk profile. Identify hotspots before they become problems.")
@@ -136,7 +133,7 @@ def show_simulator(cost_model, timeline_model):
             if material_index < 6:
                 st.warning("🟡 **Action:** Material availability is a concern. Secure alternative suppliers now.")
 
-# --- Page 3: The NLP Analyzer ---
+# --- Page 3: The NLP Analyzer (unchanged) ---
 def show_nlp_analyzer():
     st.header("📜 Vendor & Stakeholder Report Analyzer")
     st.markdown("Uncover hidden risks from unstructured text reports, emails, and meeting minutes.")
