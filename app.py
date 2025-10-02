@@ -24,7 +24,6 @@ def load_models():
 # --- Main App Logic ---
 def main():
     # --- ROBUST NLTK SETUP ---
-    # This setup is simpler and avoids the errors we saw in the logs.
     try:
         nltk.data.find('sentiment/vader_lexicon')
     except LookupError:
@@ -54,14 +53,14 @@ def show_dashboard():
     last_sync = data_connector.get_last_sync_time()
     st.caption(f"Last data sync: {last_sync}")
 
-    # --- Interactive Map with Live Data (using the new plotly function) ---
+    # --- Interactive Map with Live Data (reverted to the working function) ---
     st.subheader("Geospatial Risk View")
-    fig_map = px.scatter_map(live_data, lat="lat", lon="lon", color="status", hover_name="name",
+    fig_map = px.scatter_mapbox(live_data, lat="lat", lon="lon", color="status", hover_name="name",
                                 hover_data=['project_id', 'predicted_delay_days', 'vendor_status'],
                                 color_discrete_map={"On Track":"green", "At Risk":"orange", "Critical":"red"},
                                 zoom=4, height=500, mapbox_style="open-street-map")
-    # Using the new width parameter instead of the deprecated one
-    st.plotly_chart(fig_map, width='stretch')
+    # Reverted to the working parameter
+    st.plotly_chart(fig_map, use_container_width=True)
     
     # --- KPIs based on Live Data ---
     st.subheader("Key Performance Indicators")
