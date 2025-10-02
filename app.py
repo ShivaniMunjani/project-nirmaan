@@ -6,20 +6,11 @@ import plotly.graph_objects as go
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import shap
-import nltk
+import nltk # Make sure nltk is imported
 
 # Import our custom modules
 import model_engine
 import nlp_insight
-
-# --- ADD THIS NEW FUNCTION ---
-@st.cache_data
-def download_nltk_data():
-    """Downloads required NLTK data only once."""
-    try:
-        nltk.data.find('sentiment/vader_lexicon.zip')
-    except nltk.downloader.DownloadError:
-        nltk.download('vader_lexicon')
 
 # --- Page Configuration ---
 st.set_page_config(page_title="Project Nirmaan", page_icon="🏗️", layout="wide", initial_sidebar_state="expanded")
@@ -31,9 +22,17 @@ def load_models():
 
 # --- Main App Logic ---
 def main():
+    # --- ROBUST NLTK SETUP ---
+    # This code runs only once per session and is very reliable.
+    if 'nltk_downloaded' not in st.session_state:
+        with st.spinner("Downloading necessary language models... (This is a one-time setup)"):
+            try:
+                nltk.download('vader_lexicon')
+                st.session_state['nltk_downloaded'] = True
+            except Exception as e:
+                st.error(f"Error downloading NLTK data: {e}")
+                st.stop()
 
-    download_nltk_data()
-    
     cost_model, timeline_model, feature_names = load_models()
     
     # --- Sidebar Navigation ---
@@ -53,7 +52,6 @@ def show_dashboard():
     st.header("📊 Live Project Risk Dashboard")
     st.markdown("Real-time overview of all POWERGRID projects across India.")
     
-    # --- Create Fake Live Data ---
     projects = [
         {'name': 'Mumbai Substation', 'lat': 19.07, 'lon': 72.87, 'risk': 'High'},
         {'name': 'Delhi Overhead Line', 'lat': 28.70, 'lon': 77.10, 'risk': 'Medium'},
@@ -63,20 +61,16 @@ def show_dashboard():
     ]
     df_map = pd.DataFrame(projects)
     
-    # --- Interactive Map ---
     fig_map = px.scatter_mapbox(df_map, lat="lat", lon="lon", color="risk", hover_name="name",
                                 color_discrete_map={"Low":"green", "Medium":"orange", "High":"red"},
                                 zoom=4, height=500, mapbox_style="open-street-map")
     st.plotly_chart(fig_map, use_container_width=True)
     
-    # --- KPIs and Charts ---
     col1, col2, col3 = st.columns(3)
     col1.metric("Total Projects", "247", "12 this month")
     col2.metric("At-Risk Projects", "38", "-5% from last week")
     col3.metric("Avg. Predicted Delay", "45 days", "📈")
     
-    # --- Risk Trend Chart ---
-    st.subheader("Project Risk Trend (Last 6 Months)")
     trend_data = pd.DataFrame({
         'month': ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
         'high_risk': [20, 25, 22, 30, 35, 38],
@@ -87,6 +81,7 @@ def show_dashboard():
     fig_trend.add_trace(go.Scatter(x=trend_data['month'], y=trend_data['high_risk'], mode='lines+markers', name='High Risk', line=dict(color='red')))
     fig_trend.add_trace(go.Scatter(x=trend_data['month'], y=trend_data['medium_risk'], mode='lines+markers', name='Medium Risk', line=dict(color='orange')))
     fig_trend.add_trace(go.Scatter(x=trend_data['month'], y=trend_data['low_risk'], mode='lines+markers', name='Low Risk', line=dict(color='green')))
+    st.subheader("Project Risk Trend (Last 6 Months)")
     st.plotly_chart(fig_trend, use_container_width=True)
 
 # --- Page 2: The Simulator ---
@@ -126,7 +121,6 @@ def show_simulator(cost_model, timeline_model):
             col_res1.metric("💰 Predicted Cost Overrun", f"{cost_pred:.2f}%")
             col_res2.metric("⏱️ Predicted Timeline Delay", f"{timeline_pred:.0f} Days")
             
-            # --- SHAP Explanation ---
             st.subheader("🔍 Hotspot Analysis (Root Cause of Risk)")
             explainer = shap.Explainer(cost_model.named_steps['model'], cost_model.named_steps['preprocessor'].transform(input_df))
             shap_values = explainer(cost_model.named_steps['preprocessor'].transform(input_df))
@@ -135,7 +129,6 @@ def show_simulator(cost_model, timeline_model):
             shap.plots.waterfall(shap_values[0], max_display=8, show=False)
             st.pyplot(fig_shap, use_container_width=True)
             
-            # --- Prescriptive Actions ---
             st.subheader("💡 Prescriptive Actions")
             if vendor_score < 5:
                 st.error("🔴 **Action:** Vendor performance is low. Consider re-evaluating the contract or increasing oversight.")
@@ -170,7 +163,6 @@ def show_nlp_analyzer():
             else:
                 st.info("No immediate risk keywords were found.")
             
-            # Word Cloud
             st.subheader("Keyword Cloud")
             wordcloud = WordCloud(width=800, height=400, background_color='white').generate(vendor_report)
             fig_wc, ax = plt.subplots()
@@ -182,5 +174,4 @@ def show_nlp_analyzer():
 
 # --- Run the App ---
 if __name__ == "__main__":
-
     main()
