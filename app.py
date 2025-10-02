@@ -11,6 +11,7 @@ import nltk # Make sure nltk is imported
 # Import our custom modules
 import model_engine
 import nlp_insight
+import data_connector
 
 # --- Page Configuration ---
 st.set_page_config(page_title="Project Nirmaan", page_icon="🏗️", layout="wide", initial_sidebar_state="expanded")
@@ -48,42 +49,40 @@ def main():
         show_nlp_analyzer()
 
 # --- Page 1: The Dashboard ---
+# --- Page 1: The Live Dashboard (NEW VERSION) ---
 def show_dashboard():
     st.header("📊 Live Project Risk Dashboard")
-    st.markdown("Real-time overview of all POWERGRID projects across India.")
     
-    projects = [
-        {'name': 'Mumbai Substation', 'lat': 19.07, 'lon': 72.87, 'risk': 'High'},
-        {'name': 'Delhi Overhead Line', 'lat': 28.70, 'lon': 77.10, 'risk': 'Medium'},
-        {'name': 'Bangalore UG Cable', 'lat': 12.97, 'lon': 77.59, 'risk': 'Low'},
-        {'name': 'Kolkata Grid', 'lat': 22.57, 'lon': 88.36, 'risk': 'High'},
-        {'name': 'Chennai Plant', 'lat': 13.08, 'lon': 80.27, 'risk': 'Medium'}
-    ]
-    df_map = pd.DataFrame(projects)
-    
-    fig_map = px.scatter_mapbox(df_map, lat="lat", lon="lon", color="risk", hover_name="name",
-                                color_discrete_map={"Low":"green", "Medium":"orange", "High":"red"},
+    # --- Fetch Live Data ---
+    live_data = fetch_live_project_data()
+    last_sync = get_last_sync_time()
+    st.caption(f"Last data sync: {last_sync}")
+
+    # --- Interactive Map with Live Data ---
+    st.subheader("Geospatial Risk View")
+    # We use the 'status' column to color the points
+    fig_map = px.scatter_mapbox(live_data, lat="lat", lon="lon", color="status", hover_name="name",
+                                hover_data=['project_id', 'predicted_delay_days', 'vendor_status'],
+                                color_discrete_map={"On Track":"green", "At Risk":"orange", "Critical":"red"},
                                 zoom=4, height=500, mapbox_style="open-street-map")
     st.plotly_chart(fig_map, use_container_width=True)
     
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Total Projects", "247", "12 this month")
-    col2.metric("At-Risk Projects", "38", "-5% from last week")
-    col3.metric("Avg. Predicted Delay", "45 days", "📈")
-    
-    trend_data = pd.DataFrame({
-        'month': ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-        'high_risk': [20, 25, 22, 30, 35, 38],
-        'medium_risk': [50, 55, 60, 58, 62, 65],
-        'low_risk': [100, 95, 98, 92, 90, 88]
-    })
-    fig_trend = go.Figure()
-    fig_trend.add_trace(go.Scatter(x=trend_data['month'], y=trend_data['high_risk'], mode='lines+markers', name='High Risk', line=dict(color='red')))
-    fig_trend.add_trace(go.Scatter(x=trend_data['month'], y=trend_data['medium_risk'], mode='lines+markers', name='Medium Risk', line=dict(color='orange')))
-    fig_trend.add_trace(go.Scatter(x=trend_data['month'], y=trend_data['low_risk'], mode='lines+markers', name='Low Risk', line=dict(color='green')))
-    st.subheader("Project Risk Trend (Last 6 Months)")
-    st.plotly_chart(fig_trend, use_container_width=True)
+    # --- KPIs based on Live Data ---
+    st.subheader("Key Performance Indicators")
+    total_projects = len(live_data)
+    critical_projects = len(live_data[live_data['status'] == 'Critical'])
+    avg_delay = live_data['predicted_delay_days'].mean()
 
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total Active Projects", total_projects)
+    col2.metric("Critical Projects", critical_projects, f"{critical_projects/total_projects:.0%} of total")
+    col3.metric("Avg. Predicted Delay", f"{avg_delay:.0f} days")
+
+    # --- Detailed Project Table ---
+    st.subheader("Detailed Project Status")
+    # We display the live data in a clean table format
+    st.dataframe(live_data, use_container_width=True)
+    
 # --- Page 2: The Simulator ---
 def show_simulator(cost_model, timeline_model):
     st.header("🔮 Project Risk Simulator")
