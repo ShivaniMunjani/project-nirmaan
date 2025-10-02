@@ -6,10 +6,20 @@ import plotly.graph_objects as go
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import shap
+import nltk
 
 # Import our custom modules
 import model_engine
 import nlp_insight
+
+# --- ADD THIS NEW FUNCTION ---
+@st.cache_data
+def download_nltk_data():
+    """Downloads required NLTK data only once."""
+    try:
+        nltk.data.find('sentiment/vader_lexicon.zip')
+    except nltk.downloader.DownloadError:
+        nltk.download('vader_lexicon')
 
 # --- Page Configuration ---
 st.set_page_config(page_title="Project Nirmaan", page_icon="🏗️", layout="wide", initial_sidebar_state="expanded")
@@ -21,6 +31,9 @@ def load_models():
 
 # --- Main App Logic ---
 def main():
+
+    download_nltk_data()
+    
     cost_model, timeline_model, feature_names = load_models()
     
     # --- Sidebar Navigation ---
@@ -169,4 +182,5 @@ def show_nlp_analyzer():
 
 # --- Run the App ---
 if __name__ == "__main__":
+
     main()
