@@ -24,14 +24,12 @@ def load_models():
 # --- Main App Logic ---
 def main():
     # --- ROBUST NLTK SETUP ---
-    if 'nltk_downloaded' not in st.session_state:
+    # This setup is simpler and avoids the errors we saw in the logs.
+    try:
+        nltk.data.find('sentiment/vader_lexicon')
+    except LookupError:
         with st.spinner("Downloading necessary language models... (This is a one-time setup)"):
-            try:
-                nltk.download('vader_lexicon')
-                st.session_state['nltk_downloaded'] = True
-            except Exception as e:
-                st.error(f"Error downloading NLTK data: {e}")
-                st.stop()
+            nltk.download('vader_lexicon')
 
     cost_model, timeline_model, feature_names = load_models()
     
@@ -49,20 +47,21 @@ def main():
 
 # --- Page 1: The NEW Live Dashboard ---
 def show_dashboard():
-    st.header("📊 LIVE DASHBOARD - VERSION 2")
+    st.header("📊 LIVE DASHBOARD - FINAL VERSION")
     
     # --- Fetch Live Data ---
     live_data = data_connector.fetch_live_project_data()
     last_sync = data_connector.get_last_sync_time()
     st.caption(f"Last data sync: {last_sync}")
 
-    # --- Interactive Map with Live Data ---
+    # --- Interactive Map with Live Data (using the new plotly function) ---
     st.subheader("Geospatial Risk View")
-    fig_map = px.scatter_mapbox(live_data, lat="lat", lon="lon", color="status", hover_name="name",
+    fig_map = px.scatter_map(live_data, lat="lat", lon="lon", color="status", hover_name="name",
                                 hover_data=['project_id', 'predicted_delay_days', 'vendor_status'],
                                 color_discrete_map={"On Track":"green", "At Risk":"orange", "Critical":"red"},
                                 zoom=4, height=500, mapbox_style="open-street-map")
-    st.plotly_chart(fig_map, use_container_width=True)
+    # Using the new width parameter instead of the deprecated one
+    st.plotly_chart(fig_map, width='stretch')
     
     # --- KPIs based on Live Data ---
     st.subheader("Key Performance Indicators")
